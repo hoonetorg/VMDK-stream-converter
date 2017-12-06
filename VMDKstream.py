@@ -105,14 +105,14 @@ def create_sparse_header(inFileSectors, descriptorSize,
                     rgdOffset, gdOffset, overHead, uncleanShutdown,
                     '\n', ' ', '\r', '\n', compressAlgorithm ]
     for i in range(433):
-	header_list.append(0)
+        header_list.append(0)
     header_struct = "=IIIQQQQIQQQBccccH433B"
     return struct.pack(header_struct, *header_list)
 
 def create_marker(numSectors, size, marker_type):
     marker_list = [ numSectors, size, marker_type ]
     for i in range(496):
-	marker_list.append(0)
+        marker_list.append(0)
     marker_struct = "=QII496B"
     return struct.pack(marker_struct, *marker_list)
 
@@ -251,13 +251,13 @@ def convert_to_stream(infilename, outfilename):
             else:
                 # Create a compressed grain
                 currentGrainTable.append(sector_pointer(outfile))
-		compChunk = zlib.compress(inChunk)
+                compChunk = zlib.compress(inChunk)
                 grain_marker = create_grain_marker(inputSectorPointer,
                                                    len(compChunk))
-		grainPad, writeSectors = pad_to_sector(len(compChunk) + len(grain_marker))
-		outfile.write(grain_marker)
-		outfile.write(compChunk)
-		outfile.write(grainPad)
+                grainPad, writeSectors = pad_to_sector(len(compChunk) + len(grain_marker))
+       	        outfile.write(grain_marker)
+       	        outfile.write(compChunk)
+       	        outfile.write(grainPad)
 
             if len(currentGrainTable) == numGTEsPerGT:
                 # Table is full
