@@ -33,7 +33,6 @@ import struct
 import sys
 import os
 import math
-import string
 import zlib
 
 class VMDKStreamException(Exception):
@@ -103,7 +102,7 @@ def create_sparse_header(inFileSectors, descriptorSize,
     header_list = [ MAGIC_NUMBER, formatVersion, flags, inFileSectors,
                     grainSize, descriptorOffset, descriptorSize, numGTEsPerGT,
                     rgdOffset, gdOffset, overHead, uncleanShutdown,
-                    '\n', ' ', '\r', '\n', compressAlgorithm ]
+                    b'\n', b' ', b'\r',b'\n', compressAlgorithm ]
     for i in range(433):
         header_list.append(0)
     header_struct = "=IIIQQQQIQQQBccccH433B"
@@ -126,16 +125,16 @@ def divro(num, den):
     # Is there some nicer way to do this?
     return int(math.ceil((1.0*num)/(1.0*den)))
 
-def pad_to_sector(stringlen):
-    # create a pad that, when concated onto a string of stringlen
+def pad_to_sector(data_len):
+    # create a pad that, when concated to bytes of data_len
     # makes it an integer number of sectors
-    # return pad and length of input_string + pad in sectors
-    pad = ""
-    if stringlen % SECTOR_SIZE:
+    # return pad and length of data + pad in sectors
+    pad = b''
+    if data_len % SECTOR_SIZE:
         # This does need padding
-        for i in range(SECTOR_SIZE - (stringlen % SECTOR_SIZE)):
-            pad += '\0'
-    finallen = (stringlen + len(pad))/SECTOR_SIZE
+        for i in range(SECTOR_SIZE - (data_len % SECTOR_SIZE)):
+            pad += b'\0'
+    finallen = (data_len + len(pad)) // SECTOR_SIZE
     return pad, finallen
 
 def sector_pointer(file_object):
@@ -145,7 +144,7 @@ def sector_pointer(file_object):
     if file_location % SECTOR_SIZE:
         raise VMDKStreamException("Asked for a sector pointer on a file whose r/w pointer is not sector aligned")
     else:
-        return file_location / SECTOR_SIZE
+        return file_location // SECTOR_SIZE
 
 
 def write_grain_table(outfile, grain_table, gtes_per_gt = 512):
@@ -160,7 +159,7 @@ def write_grain_table(outfile, grain_table, gtes_per_gt = 512):
         # We don't need to write this and can put zeros in the directory
         return 0
     else:
-        grain_table_marker = create_marker(numSectors = (gtes_per_gt * 4) / SECTOR_SIZE,
+        grain_table_marker = create_marker(numSectors = (gtes_per_gt * 4) // SECTOR_SIZE,
                                            size = 0, marker_type = MARKER_GT)
         outfile.write(grain_table_marker)
         table_location = sector_pointer(outfile)
@@ -201,9 +200,9 @@ def convert_to_stream(infilename, outfilename):
 
     # Populate descriptor
     tmpl = image_descriptor_template
-    tmpl = string.replace(tmpl, "#SECTORS#", str(infileSectors))
-    tmpl = string.replace(tmpl, "#CYLINDERS#", str(infileCylinders))
-    image_descriptor = tmpl
+    tmpl = tmpl.replace("#SECTORS#", str(infileSectors))
+    tmpl = tmpl.replace("#CYLINDERS#", str(infileCylinders))
+    image_descriptor = tmpl.encode('ASCII')
 
     image_descriptor_pad, desc_sectors = pad_to_sector(len(image_descriptor))
     debug_print("DEBUG: Descriptor takes up (%s) sectors" % desc_sectors)
@@ -222,7 +221,7 @@ def convert_to_stream(infilename, outfilename):
 
     # Pad the output file to fill the overHead
     for i in range((overHead-sector_pointer(outfile)) * SECTOR_SIZE):
-        outfile.write('\0')
+        outfile.write(b'\0')
 
     # grainDirectory - list of integers representing the global level 0 grain
     # directory
@@ -234,9 +233,9 @@ def convert_to_stream(infilename, outfilename):
 
     # For slightly more efficient comparison
     grainSize = grainSectors * SECTOR_SIZE
-    zeroChunk = ""
+    zeroChunk = b''
     for i in range(grainSize):
-        zeroChunk += '\0'
+        zeroChunk += b'\0'
 
     # We are ready to start reading
     infile = open(infilename, "rb")
@@ -244,7 +243,7 @@ def convert_to_stream(infilename, outfilename):
     try:
         inputSectorPointer = sector_pointer(infile)
         inChunk = infile.read(grainSize)
-        while inChunk != "":
+        while len(inChunk) != 0:
             if inChunk == zeroChunk:
                 # All zeros - no need to create a grain - just mark zero in GTE
                 currentGrainTable.append(0)
